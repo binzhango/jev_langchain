@@ -12,6 +12,7 @@ from pydantic import BaseModel, Field
 from .config import Settings
 from .domain import SCENARIOS, AUTO_REFUND_LIMIT, HARD_REFUND_LIMIT
 from .runner import ComparisonRunner
+from .local_access import LocalAccessMiddleware
 
 
 class StartRequest(BaseModel):
@@ -37,6 +38,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         runner.close()
 
     app = FastAPI(title="Jev Decision Lab", lifespan=lifespan)
+    app.add_middleware(LocalAccessMiddleware)
     app.state.runner = runner
 
     @app.exception_handler(KeyError)

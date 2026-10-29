@@ -18,7 +18,7 @@ export default function DecisionDetail({ event }: { event: TraceEvent }) {
   const risk = typeof riskAnswer.score === 'number' ? riskAnswer.score : null;
   return (
     <div className="decision-detail">
-      {event.type === 'jev_triage' && <p className="question">Category selects one extra playbook prompt line. It does not filter tools or enforce routing. Urgency, frustration, and needs review are displayed signals; the separate refund risk score drives the additional review gate.</p>}
+      {event.type === 'jev_triage' && <p className="question">Category selects one extra playbook prompt line. It does not filter tools or enforce routing. Urgency and frustration are displayed signals; the separate refund risk score drives the additional review gate.</p>}
       {Object.entries(answers).map(([id, value]) => {
         const answer = record(value);
         const question = record(questions[id]);

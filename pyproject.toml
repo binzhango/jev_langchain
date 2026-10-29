@@ -7,7 +7,7 @@ requires-python = ">=3.12"
 dependencies = [
   "langchain>=1.0,<2",
   "langchain-openai>=1.0,<2",
-  "langchain-typesafe>=0.0.1a3,<1",
+  "langchain-typesafe==0.0.1a3",
   "langgraph-checkpoint-sqlite>=3,<4",
   "fastapi>=0.115,<1",
   "uvicorn>=0.30,<1",

@@ -169,7 +169,7 @@ class ComparisonRunner:
                     def signature(action):
                         if action is None:
                             return None
-                        args = {key: value for key, value in action["args"].items() if key != "reason"}
+                        args = {key: value for key, value in action["args"].items() if key not in {"reason", "request_review"}}
                         result = action["result"]
                         return action["tool"], args, result.get("status") if isinstance(result, dict) else result
                     if signature(a) != signature(b):

@@ -23,7 +23,7 @@ def forbid_model_network(monkeypatch):
 
 @pytest.fixture
 def client(tmp_path):
-    with TestClient(create_app(Settings(data_dir=tmp_path))) as value:
+    with TestClient(create_app(Settings(data_dir=tmp_path)), base_url="http://127.0.0.1") as value:
         yield value
 
 
@@ -57,7 +57,7 @@ def start_fixture(client, scenario="missing-item"):
 
 def test_public_configuration_never_returns_credentials(tmp_path):
     settings = Settings(data_dir=tmp_path, jev_token="test-jev-secret", llm_api_key="test-worker-secret")
-    with TestClient(create_app(settings)) as client:
+    with TestClient(create_app(settings), base_url="http://127.0.0.1") as client:
         response = client.get("/api/config")
         assert response.status_code == 200
         config = response.json()
@@ -134,6 +134,23 @@ def test_missing_review_comparison_returns_404(client):
     assert response.json() == {"detail": "Comparison not found."}
 
 
+@pytest.mark.parametrize('origin', ['https://evil.example', 'null', 'http://localhost.evil.example:8000', 'http://localhost:9000', 'http://[invalid'])
+def test_foreign_origins_cannot_create_comparisons(client, origin):
+    response = client.post('/api/comparisons', headers={'origin': origin}, json={'execution': 'fixture'})
+    assert response.status_code == 403
+    assert client.get('/api/comparisons').json() == []
+
+
+@pytest.mark.parametrize('host', ['evil.example', 'localhost.evil.example', '127.0.0.1.evil.example', 'localhost@evil.example'])
+def test_untrusted_host_rejected(client, host):
+    assert client.get('/api/config', headers={'host': host}).status_code == 400
+
+
+@pytest.mark.parametrize('origin', ['http://127.0.0.1', 'http://localhost:5173', 'http://127.0.0.1:5173'])
+def test_local_ui_origins_work(client, origin):
+    assert client.get('/api/config', headers={'origin': origin}).status_code == 200
+
+
 def test_benchmark_report_is_read_only_and_restricts_filenames(client, tmp_path):
     assert client.get('/benchmark/report.html').status_code == 404
     folder = tmp_path / 'benchmark'
@@ -174,7 +191,7 @@ def test_stale_review_is_rejected_and_cannot_repeat_a_payment(client):
 def test_root_has_useful_fallback_without_a_built_dashboard(tmp_path, monkeypatch):
     # Resolve the static directory beneath an empty tree without moving a real build.
     monkeypatch.setattr(api, "__file__", str(tmp_path / "no-build" / "src" / "jev_harness" / "api.py"))
-    with TestClient(create_app(Settings(data_dir=tmp_path / "data"))) as client:
+    with TestClient(create_app(Settings(data_dir=tmp_path / "data")), base_url="http://127.0.0.1") as client:
         response = client.get("/")
         assert response.status_code == 200
         assert "npm --prefix dashboard run build" in response.json()["message"]

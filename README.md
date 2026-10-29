@@ -52,14 +52,14 @@ Local LLM proposes a refund
 - **Noul** gives the probability that a statement is true. Urgency is demonstrated this way.
 - **Score** locates a case on an ordered rubric. Proposed-action risk is compared with an explicit review threshold.
 
-Jev does not write the final answer or authorize a refund itself. Python enforces ownership, finite whole-cent amounts, a $200 ceiling, the remaining order value, and duplicate protection in both paths. Refunds over $25 require review. Reviewed edits are checked again before execution. Urgency, frustration, and the triage `needs_review` answer are visible teaching signals; they do not silently change monetary entitlement. [Decision anatomy](docs/concepts.md)
+Jev does not write the final answer or authorize a refund itself. Python enforces ownership, finite whole-cent amounts, a $200 ceiling, the remaining order value, and duplicate protection in both paths. Refunds over $25 require review. Reviewed edits are checked again before execution. Urgency and frustration are visible teaching signals; they do not silently change monetary entitlement. [Decision anatomy](docs/concepts.md)
 
 ## Learn in small steps
 
 ```bash
 uv run python examples/01_jev_primitives.py
 uv run python examples/02_local_agent.py
-uv run python examples/03_jev_workflow.py
+uv run python examples/03_jev_playbook_hint.py
 uv run python examples/04_jev_tool_review.py
 uv run python examples/05_compare.py --scenario missing-item
 ```
@@ -74,7 +74,7 @@ For a **decision-only benchmark**, give Jev and the existing local LLM the exact
 uv run jev-lab benchmark --repeat 3 --output artifacts/benchmark
 ```
 
-This is an exploratory deployment comparison on 18 authored cases, not proof of model superiority. The first run produced **18/18 usable correct answers for Jev versus 17/18 for the local LLM**; the single difference was a JSON field-name error, not an observed wrong judgment. Both were correct on every valid response. Median valid-response times of **151 ms versus 11.16 s** compare hosted Jev with a local 27B model, including different hardware, serving stacks, and reasoning overhead. They do not establish intrinsic model speed or faster end-to-end agents. Scripted fixtures demonstrate machinery only.
+This is an exploratory deployment comparison on 18 authored cases, not proof of model superiority. The first run produced **18/18 usable correct answers for Jev versus 17/18 for the local LLM**; the single difference was a JSON field-name error, not an observed wrong judgment. Both were correct on every valid response. A separate lenient-parse column now credits the field-name slip, giving both 18/18 on this recording while preserving the strict result. Accuracy intervals use one observation per authored case. Median valid-response times of **151 ms versus 11.16 s** compare hosted Jev with a local 27B model, including different hardware, serving stacks, and reasoning overhead. They do not establish intrinsic model speed or faster end-to-end agents. Scripted fixtures demonstrate machinery only.
 
 The command writes JSON evidence, a Markdown comparison, and a standalone HTML report. It uses the existing local chat model to answer decision questions; no local decision model is required. See [benchmark methodology](docs/decision-benchmark.md).
 

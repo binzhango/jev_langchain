@@ -18,7 +18,7 @@ export function StatusBadge({ status }: { status: Status }) {
 }
 
 const eventIcons: Record<string, typeof Circle> = {
-  input: MessageSquare, jev_triage: Sparkles, workflow: GitBranch, model: Bot, model_result: Bot, tool_proposed: Wrench,
+  input: MessageSquare, jev_triage: Sparkles, playbook_hint: GitBranch, model: Bot, model_result: Bot, tool_proposed: Wrench,
   jev_risk: ShieldCheck, policy: ShieldCheck, review_requested: Hand, review_resolved: Check,
   tool_result: Code2, response: MessageSquare, error: AlertCircle,
 };
@@ -30,12 +30,12 @@ function EventRow({ event, source }: { event: TraceEvent; source: Execution }) {
     <span className="event-node"><Icon size={14} /></span>
     <details className="event-disclosure">
       <summary>
-        <span className="event-summary"><span className="event-kind">{event.type === 'workflow' ? 'prompt guidance' : event.type.replaceAll('_', ' ')}{decision && <span className="jev-mark">Jev</span>}</span><span className="event-title">{event.type === 'workflow' ? 'Selected playbook hint (advisory)' : event.title}</span></span>
+        <span className="event-summary"><span className="event-kind">{event.type.replaceAll('_', ' ')}{decision && <span className="jev-mark">Jev</span>}</span><span className="event-title">{event.type === 'playbook_hint' ? 'Selected playbook hint (advisory)' : event.title}</span></span>
         {source === 'live' && typeof event.elapsed_ms === 'number' && <span className="event-time">{duration(event.elapsed_ms)}</span>}
         <ChevronDown size={14} className="event-chevron" />
       </summary>
       <div className="event-body">
-        {event.type === 'workflow' && <p>Advisory prompt selection only. Both agents retain all playbooks and tools; no workflow-specific execution restriction is applied.</p>}
+        {event.type === 'playbook_hint' && <p>Advisory prompt selection only. Both agents retain all playbooks and tools; no workflow-specific execution restriction is applied.</p>}
         {decision && <DecisionDetail event={event} />}
         <details className="raw-details" open={!decision}>
           <summary><Code2 size={13} />{decision ? 'Raw state, questions & response' : 'Event details'}</summary>
@@ -90,7 +90,7 @@ export default function RunPanel({ path, run, source, model, onReview }: { path:
   const isJev = path === 'jev';
   const events = run?.events ?? [];
   const [onlyDecisions, setOnlyDecisions] = useState(false);
-  const selectedEvents = onlyDecisions ? events.filter(event => ['jev_triage', 'workflow', 'jev_risk', 'policy', 'review_requested', 'review_resolved', 'tool_proposed', 'tool_result', 'error'].includes(event.type)) : events;
+  const selectedEvents = onlyDecisions ? events.filter(event => ['jev_triage', 'playbook_hint', 'jev_risk', 'policy', 'review_requested', 'review_resolved', 'tool_proposed', 'tool_result', 'error'].includes(event.type)) : events;
   const metrics = run?.metrics;
   return <section className={`run-panel ${isJev ? 'run-jev' : 'run-normal'}`} aria-label={isJev ? 'Jev-assisted agent' : 'Normal agent'}>
     <header className="run-header">

@@ -17,7 +17,6 @@ TRIAGE_QUESTIONS = {
     "urgent": Noul(instructions="Does the customer express a time-sensitive need?"),
     "frustration": Score(instructions="How frustrated does the customer sound?", criteria=[
         "Calm or neutral.", "Frustrated but civil.", "Very angry or hostile."]),
-    "needs_review": Noul(instructions="Does this request contain unresolved ambiguity, conflicting evidence, or an explicit need for human help?"),
 }
 RISK_QUESTIONS = {
     "risk": Score(
@@ -29,7 +28,7 @@ RISK_QUESTIONS = {
 }
 
 
-def workflow(triage: dict[str, Any]) -> tuple[str, str]:
+def playbook_hint(triage: dict[str, Any]) -> tuple[str, str]:
     """Visible Python policy, not a purported explanation of Jev's reasoning."""
     answer = triage["answers"]["category"]
     if answer["confidence"] < 0.6:
@@ -79,7 +78,6 @@ class JevDecisions:
                 "frustration": {"type": "score", "score": 0.6, "confidence": 0.5,
                                 "probabilities": {"0": 0.4, "1": 0.6, "2": 0.0},
                                 "legend": {"0": "Calm", "1": "Frustrated", "2": "Angry"}},
-                "needs_review": {"type": "noul", "noul": 0.9 if scenario in {"ambiguous", "unjustified-refund"} else 0.1},
             }
         else:
             risk = 1.8 if scenario == "unjustified-refund" else 0.1

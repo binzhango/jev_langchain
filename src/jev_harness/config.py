@@ -2,6 +2,7 @@
 from dataclasses import dataclass, field
 from pathlib import Path
 import os
+import math
 
 from dotenv import load_dotenv
 
@@ -19,6 +20,10 @@ class Settings:
     data_dir: Path = Path("artifacts")
     risk_threshold: float = 1.0
 
+    def __post_init__(self):
+        if not math.isfinite(self.risk_threshold) or not 0 <= self.risk_threshold <= 2:
+            raise ValueError("JEV_RISK_THRESHOLD must be a finite number between 0 and 2.")
+
     @classmethod
     def from_env(cls):
         load_dotenv(override=False)
@@ -32,6 +37,7 @@ class Settings:
             jev_model=os.getenv("JEV_MODEL", "jev-latest"),
             jev_timeout=float(os.getenv("JEV_TIMEOUT", "30")),
             data_dir=Path(os.getenv("JEV_LAB_DATA_DIR", "artifacts")),
+            risk_threshold=float(os.getenv("JEV_RISK_THRESHOLD", "1.0")),
         )
 
     def safe_error(self, error: Exception) -> str:

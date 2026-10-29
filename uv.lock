@@ -345,7 +345,7 @@ requires-dist = [
     { name = "fastapi", specifier = ">=0.115,<1" },
     { name = "langchain", specifier = ">=1.0,<2" },
     { name = "langchain-openai", specifier = ">=1.0,<2" },
-    { name = "langchain-typesafe", specifier = ">=0.0.1a3,<1" },
+    { name = "langchain-typesafe", specifier = "==0.0.1a3" },
     { name = "langgraph-checkpoint-sqlite", specifier = ">=3,<4" },
     { name = "python-dotenv", specifier = ">=1,<2" },
     { name = "uvicorn", specifier = ">=0.30,<1" },

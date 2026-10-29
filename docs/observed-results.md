@@ -32,6 +32,9 @@ On October 29, 2026, the 18-case teaching suite ran once against the same local 
 | --- | --- | --- |
 | Valid and correct / all attempts | 17 / 18 | 18 / 18 |
 | Correct among valid responses | 17 / 17 | 18 / 18 |
+| Correct after lenient parsing (post-hoc) | 18 / 18 | 18 / 18 |
+| Strict accuracy, 95% Wilson interval | 74.2%–99.0% | 82.4%–100% |
+| Lenient accuracy, 95% Wilson interval | 82.4%–100% | 82.4%–100% |
 | Formatting failures | 1 | 0 |
 | Median valid-response latency | 11.158 s | 0.151 s |
 | p95 valid-response latency | 45.328 s | 0.219 s |
@@ -45,3 +48,5 @@ These are **18 authored cases in one run**, not proof of superiority. The one-it
 The LLM returned `{"decision": 1.0}` instead of the requested `{"noul": 1.0}` for `urgency-3`. This is an output-contract failure, not evidence of a wrong urgency judgment. No repair or retry was applied. Both providers made every valid discrete decision correctly, with no false allows or unnecessary reviews on the six risk cases. The LLM matched the authored numeric labels exactly on valid outputs; Jev's soft scores differed slightly while producing the same threshold decisions.
 
 This run observed lower request latency for hosted Jev and one fewer invalid output. That is deployment-specific evidence, not an established general reliability or speed advantage. It does **not** establish better semantic decision quality, broad calibration, or improved full-agent task outcomes. The local model's reported output includes reasoning tokens; hardware, networking, tokenizers, and decoding interfaces differ. Earlier incompatible JSON-mode/schema-mode probes are excluded; the published run uses ordinary prompted JSON throughout.
+
+The lenient columns are a post-hoc sensitivity analysis using the documented parser, not a new inference run. Original recordings remain unchanged. Wilson intervals use the 18 first-pass cases and do not make this authored suite representative of a population.

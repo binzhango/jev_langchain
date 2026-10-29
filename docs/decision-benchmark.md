@@ -31,6 +31,8 @@ One warmup per provider is recorded separately and excluded by default. `--no-wa
 | Metric | Interpretation |
 | --- | --- |
 | Decision accuracy | Correct decisions divided by all attempts; failed requests count as incorrect |
+| Lenient accuracy | Secondary score after bounded, label-independent normalization; strict failures remain recorded |
+| First-pass 95% accuracy intervals | Wilson intervals on the first recorded repetition of each unique case; rerunning a case does not increase this sample size |
 | Valid decision accuracy | Correct decisions divided by valid responses; interpret alongside failure counts |
 | Choice correctness | Exact selected key matches the expected intent |
 | Noul correctness / Brier | Probability threshold 0.5 for binary accuracy; squared probability error for valid outputs |
@@ -46,3 +48,7 @@ Read failure counts alongside accuracy and timing. Failed outputs are not counte
 Brier and MAE are conditional on valid responses. A small Brier score does not prove broad calibration. Local LLM probability values are generated estimates, not assumed to have Jev's calibration characteristics. Token counts across different model tokenizers are not equal units of compute, and no monetary savings are inferred.
 
 Start with the default single repetition as an integration check. Use multiple repetitions and expand/review the dataset before treating differences as a performance claim. No provider is assumed to win.
+
+Lenient parsing only strips a complete JSON code fence or unwraps a sole `decision` field, either a scalar or an object containing the expected field. It rejects conflicting/duplicate keys, arbitrary prose, type coercions, and values outside the original rubric. Both providers use the same rule. It never consults the expected label to parse an answer and makes no repair/model call. The rule was introduced after inspecting the historical field-name failure, so the historical lenient result is explicitly a post-hoc sensitivity analysis. Both providers score 18/18 under that rule; the local LLM still has one strict formatting failure.
+
+The [Wilson method](https://www.itl.nist.gov/div898/handbook/prc/section2/prc241.htm) supplies binomial accuracy intervals. The report uses one first-pass observation per case rather than treating repeated runs as independent tasks. These authored cases are not a representative random sample: the intervals illustrate finite-sample uncertainty, not generalization or a paired significance test. Latency statistics are descriptive and do not currently have confidence intervals.

@@ -51,6 +51,30 @@ def events(run, kind):
     return [event for event in run["events"] if event["type"] == kind]
 
 
+def test_review_request_flag_is_not_an_action_divergence(runner):
+    value = create(runner)
+    left, right = (value['runs'][path] for path in ('normal', 'jev'))
+    left['actions'] = [{'tool':'issue_refund', 'args':{'order_id':'ORD-1001', 'amount':9, 'reason':'a', 'request_review':False}, 'result':{'status':'success'}}]
+    right['actions'] = [{'tool':'issue_refund', 'args':{'order_id':'ORD-1001', 'amount':9, 'reason':'b', 'request_review':True}, 'result':{'status':'success'}}]
+    runner.store.save(value)
+    runner._analyze(value['id'])
+    assert runner.store.get(value['id'])['analysis']['agreement'] is True
+    right['actions'][0]['result']['status'] = 'rejected'
+    runner.store.save(value)
+    runner._analyze(value['id'])
+    assert runner.store.get(value['id'])['analysis']['agreement'] is False
+
+
+def test_triage_only_requests_used_teaching_signals_and_emits_hint(runner):
+    assert set(decisions.TRIAGE_QUESTIONS) == {'category', 'urgent', 'frustration'}
+    value = create(runner)
+    run = value['runs']['jev']
+    assert 'playbook_hint' in run and 'workflow' not in run
+    assert len(events(run, 'playbook_hint')) == 1
+    assert not events(run, 'workflow')
+    assert 'needs_review' not in run['triage']['answers']
+
+
 def test_identical_inputs_same_worker_and_separate_effects(runner, monkeypatch):
     worker_inputs = []
     original = agent.ScriptedWorker
@@ -303,7 +327,7 @@ def test_triage_outage_is_visible_and_not_graded_as_successful_jev_evidence(tmp_
         assert jev["degraded"] is True
         assert [error["kind"] for error in jev["decision_errors"]] == ["triage"]
         assert jev["triage"]["error"]
-        assert jev["workflow"] == "clarify"
+        assert jev["playbook_hint"] == "clarify"
         assert events(jev, "error")
         assert jev["metrics"]["jev_calls"] == 1
         assert jev["metrics"]["jev_ms"] > 0

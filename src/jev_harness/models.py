@@ -19,7 +19,7 @@ def local_model(settings: Settings):
 
 
 class ScriptedWorker(BaseChatModel):
-    """Runs the real orchestration code with explicitly synthetic model responses."""
+    """Runs the real agent and review code with explicitly synthetic model responses."""
     scenario_id: str
     order_id: str
 

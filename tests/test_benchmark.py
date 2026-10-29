@@ -1,6 +1,6 @@
 import json
 import pytest
-from jev_harness.benchmark import cases, payload, validate, run, summarize, measure
+from jev_harness.benchmark import cases, payload, validate, run, summarize, measure, lenient_result, wilson, scored_report
 from jev_harness.config import Settings
 
 
@@ -57,3 +57,41 @@ def test_failed_parsing_preserves_raw_output_and_usage():
     assert row['status'] == 'error' and not row['correct']
     assert row['raw']['text'] == 'not JSON'
     assert summarize([row])['llm']['output_tokens'] == 7
+
+
+@pytest.mark.parametrize('raw,expected_status', [
+    ('{"decision": 1.0}', 'ok'), ('```json\n{"noul": 1.0}\n```', 'ok'),
+    ('{"decision": {"noul": 1.0}}', 'ok'),
+    ('{"decision": 1.0, "noul": 0.0}', 'error'), ('{"decision": "1.0"}', 'error'),
+    ('{"decision": 2.0}', 'error'), ('{"decision": true}', 'error'),
+    ('{"decision": 0.0, "decision": 1.0}', 'error'), ('The answer is yes.', 'error'),
+])
+def test_lenient_parsing_is_bounded_and_does_not_change_strict_score(raw, expected_status):
+    row = {'status':'error', 'correct':False, 'raw':{'text':raw}, 'expected':1}
+    result = lenient_result(row, {'type':'noul'})
+    assert result['lenient_status'] == expected_status
+    assert result['status'] == 'error' and not result['correct']
+    assert row == {'status':'error', 'correct':False, 'raw':{'text':raw}, 'expected':1}
+
+
+def test_wilson_intervals_do_not_count_repetitions_as_new_cases(tmp_path):
+    def invoke(provider, case):
+        return {case['question']['type']:case['expected']}, {}, provider, {}
+    report = run(Settings(), tmp_path, repeat=3, limit=3, warmup=False, invoke=invoke)
+    assert report['summary']['llm']['attempts'] == 9
+    assert report['summary']['llm']['interval_cases'] == 3
+    assert report['summary']['llm']['first_pass_strict_ci95'] == wilson(3, 3)
+    assert wilson(18, 18)[0] == pytest.approx(.8241208, abs=1e-6)
+    assert wilson(0, 18)[1] == pytest.approx(.1758792, abs=1e-6)
+    assert wilson(0, 0) is None
+
+
+def test_historical_field_slip_gets_lenient_credit_without_rewriting_evidence():
+    from pathlib import Path
+    report = json.loads((Path(__file__).parents[1] / 'docs/recordings/decision-benchmark-live.json').read_text())
+    original = json.dumps(report, sort_keys=True)
+    scored = scored_report(report)
+    assert scored['summary']['llm']['failures'] == 1
+    assert scored['summary']['llm']['lenient_correct'] == 18
+    assert scored['summary']['llm']['lenient_recovered'] == 1
+    assert json.dumps(report, sort_keys=True) == original

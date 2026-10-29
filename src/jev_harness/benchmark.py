@@ -11,6 +11,7 @@ import html
 import json
 import math
 import random
+from copy import deepcopy
 
 from langchain_typesafe import Choice, Noul, Score, TypeSafeClassifier
 
@@ -103,6 +104,64 @@ class Providers:
         return raw_text, response.usage_metadata or {}, response.response_metadata.get("model_name", self.settings.model), {"text": raw_text, "finish_reason": response.response_metadata.get("finish_reason")}
 
 
+def is_correct(value, expected, kind):
+    if kind == "choice":
+        return value == expected
+    return (value >= .5) == bool(expected) if kind == "noul" else (value >= 1) == (expected >= 1)
+
+
+def lenient_result(row, question):
+    """Secondary score only: fixed, label-independent parsing, never another call."""
+    result = dict(row)
+    if row["status"] == "ok":
+        result.update(lenient_status="ok", lenient_value=row["value"], lenient_correct=row["correct"], normalization="none")
+        return result
+    try:
+        raw = row.get("raw", {}).get("text")
+        if not isinstance(raw, str):
+            raise ValueError("No recorded text")
+        text = raw.strip()
+        steps = []
+        if text.startswith("```json\n") or text.startswith("```\n"):
+            if not text.endswith("```"):
+                raise ValueError("Unclosed fence")
+            text = text.split("\n", 1)[1][:-3].strip()
+            steps.append("json_fence")
+        def unique_keys(pairs):
+            value = {}
+            for key, item in pairs:
+                if key in value:
+                    raise ValueError("Duplicate JSON key")
+                value[key] = item
+            return value
+        answer = json.loads(text, object_pairs_hook=unique_keys)
+        kind = question["type"]
+        if isinstance(answer, dict) and set(answer) == {"decision"}:
+            answer = answer["decision"]
+            answer = answer if isinstance(answer, dict) else {kind: answer}
+            steps.append("decision_wrapper")
+        if not isinstance(answer, dict) or set(answer) != {kind}:
+            raise ValueError("Ambiguous or unsupported answer shape")
+        value = validate(answer, question)
+        result.update(lenient_status="ok", lenient_value=value,
+                      lenient_correct=is_correct(value, row["expected"], kind), normalization=" + ".join(steps) or "none")
+    except (ValueError, TypeError):
+        result.update(lenient_status="error", lenient_correct=False, normalization="unrecoverable")
+    return result
+
+
+def wilson(correct, n):
+    """95% Wilson interval; callers use only one observation per authored case."""
+    if not n:
+        return None
+    z = 1.959963984540054
+    p = correct / n
+    denominator = 1 + z*z/n
+    center = (p + z*z/(2*n)) / denominator
+    half = z * math.sqrt(p*(1-p)/n + z*z/(4*n*n)) / denominator
+    return [max(0.0, center-half), min(1.0, center+half)]
+
+
 def measure(provider, case, invoke, settings, repetition, order):
     started = perf_counter()
     row = {"case_id": case["id"], "primitive": case["question"]["type"], "provider": provider,
@@ -115,13 +174,13 @@ def measure(provider, case, invoke, settings, repetition, order):
             answer = json.loads(answer)
         value = validate(answer, case["question"])
         expected = case["expected"]
-        correct = value == expected if row["primitive"] == "choice" else ((value >= 0.5) == bool(expected) if row["primitive"] == "noul" else (value >= 1) == (expected >= 1))
+        correct = is_correct(value, expected, row["primitive"])
         row.update(status="ok", answer=answer, value=value, correct=correct, usage=usage, model=model, raw=raw)
     except Exception as error:
         row.update(status="error", error=settings.safe_error(error), correct=False)
         row.setdefault("usage", {})
     row["latency_ms"] = round((perf_counter() - started) * 1000, 2)
-    return row
+    return lenient_result(row, case["question"])
 
 
 def percentile(values, q):
@@ -140,9 +199,21 @@ def summarize(rows):
         valid = [r for r in group if r["status"] == "ok"]
         nouls = [r for r in valid if r["primitive"] == "noul"]
         risks = [r for r in valid if r["primitive"] == "score"]
+        first = {}
+        for index, row in enumerate(sorted(group, key=lambda r: r.get("repetition", 0))):
+            first.setdefault(row.get("case_id", str(index)), row)
+        first_rows = list(first.values())
         summary = {"attempts": len(group), "valid": len(valid), "failures": len(group)-len(valid),
                    "decision_accuracy": sum(r["correct"] for r in group)/len(group) if group else None,
                    "valid_decision_accuracy": sum(r["correct"] for r in valid)/len(valid) if valid else None,
+                   "lenient_correct": sum(r.get("lenient_correct", r["correct"]) for r in group),
+                   "lenient_accuracy": sum(r.get("lenient_correct", r["correct"]) for r in group)/len(group) if group else None,
+                   "lenient_recovered": sum(r["status"] != "ok" and r.get("lenient_status") == "ok" for r in group),
+                   "interval_cases": len(first_rows),
+                   "first_pass_strict_accuracy": mean(r["correct"] for r in first_rows) if first_rows else None,
+                   "first_pass_lenient_accuracy": mean(r.get("lenient_correct", r["correct"]) for r in first_rows) if first_rows else None,
+                   "first_pass_strict_ci95": wilson(sum(r["correct"] for r in first_rows), len(first_rows)),
+                   "first_pass_lenient_ci95": wilson(sum(r.get("lenient_correct", r["correct"]) for r in first_rows), len(first_rows)),
                    "latency_p50_ms": percentile([r["latency_ms"] for r in valid], .5),
                    "latency_p95_ms": percentile([r["latency_ms"] for r in valid], .95),
                    "all_attempt_latency_p50_ms": percentile([r["latency_ms"] for r in group], .5),
@@ -170,7 +241,17 @@ BENCHMARK_CAVEAT = (
 )
 
 
+def scored_report(report):
+    """Add derived scores to historical recordings without mutating their evidence."""
+    report = deepcopy(report)
+    questions = {case['id']: case['question'] for case in report['cases']}
+    report['rows'] = [lenient_result(row, questions[row['case_id']]) for row in report['rows']]
+    report['summary'] = summarize(report['rows'])
+    return report
+
+
 def markdown(report):
+    report = scored_report(report)
     lines = ["# Jev vs local LLM: exploratory decision benchmark", "", BENCHMARK_CAVEAT, "", report["limitations"], "",
              f"Run: {report['created_at']}. Dataset: `{report['dataset_hash'][:12]}`. Repetitions: {report['repeat']}.", "",
              f"Authored cases: {len(report['cases'])}. Repetitions reuse these cases; they are not additional independent tasks.", "",
@@ -179,16 +260,21 @@ def markdown(report):
         summary = report['summary'][provider]
         correct = sum(r['correct'] for r in report['rows'] if r['provider'] == provider)
         lines += [f"{label}: {correct}/{summary['attempts']} usable correct answers; "
-                  f"{correct}/{summary['valid']} correct among valid responses; {summary['failures']} failed outputs or requests.", ""]
+                  f"{correct}/{summary['valid']} correct among valid responses; {summary['failures']} failed outputs or requests. "
+                  f"Lenient parsing: {summary['lenient_correct']}/{summary['attempts']} correct.", ""]
     failures = [r for r in report['rows'] if r['status'] != 'ok']
     if failures:
         lines += ["Failures remain in the accuracy denominator. Inspect their raw outputs before attributing the difference to decision quality.", ""]
     lines += ["| Metric | Local LLM | Jev |", "| --- | --- | --- |"]
-    for key in ("attempts", "valid", "failures", "decision_accuracy", "valid_decision_accuracy", "latency_p50_ms", "latency_p95_ms", "all_attempt_latency_p50_ms", "noul_brier", "risk_mae", "false_allows", "unnecessary_reviews", "input_tokens", "output_tokens"):
+    for key in ("attempts", "valid", "failures", "decision_accuracy", "valid_decision_accuracy", "lenient_accuracy", "lenient_recovered", "interval_cases", "first_pass_strict_accuracy", "first_pass_strict_ci95", "first_pass_lenient_accuracy", "first_pass_lenient_ci95", "latency_p50_ms", "latency_p95_ms", "all_attempt_latency_p50_ms", "noul_brier", "risk_mae", "false_allows", "unnecessary_reviews", "input_tokens", "output_tokens"):
         def fmt(value):
+            if isinstance(value, list):
+                return f"{value[0]:.3f}–{value[1]:.3f}"
             return "not available" if value is None else f"{value:.3f}" if isinstance(value,float) else str(value)
         lines.append(f"| {key} | {fmt(report['summary']['llm'][key])} | {fmt(report['summary']['jev'][key])} |")
-    lines += ["", "Decision accuracy counts failed requests as incorrect; valid decision accuracy excludes them. Score accuracy measures review/allow at threshold 1.0; MAE measures rubric distance. Noul uses threshold 0.5. Latency p50/p95 include valid responses only; all-attempt p50 includes failures. Brier/MAE are conditional on valid output. Usage totals cover reported calls including invalid output, with coverage counts in JSON. These values do not establish calibration or dollar savings.", "",
+    lines += ["", "Lenient parsing only removes a complete JSON code fence or unwraps a sole decision field, then applies the same type/range checks. No label-based repair, retries, coercion, or changed answers. Strict failures remain visible. The lenient rule was added after inspecting the initial field-name failure; historical lenient results are a post-hoc sensitivity analysis.", "",
+              "95% Wilson accuracy intervals use only the first recorded repetition of each case, with failed requests counted as incorrect. Repetitions do not increase the interval sample size. These binomial intervals illustrate finite-sample uncertainty; authored cases are not a representative random sample, and the intervals do not prove superiority, paired significance, or generalization. Latency remains descriptive, without a confidence interval.", "",
+              "Decision accuracy counts failed requests as incorrect; valid decision accuracy excludes them. Score accuracy measures review/allow at threshold 1.0; MAE measures rubric distance. Noul uses threshold 0.5. Latency p50/p95 include valid responses only; all-attempt p50 includes failures. Brier/MAE are conditional on valid output. Usage totals cover reported calls including invalid output, with coverage counts in JSON. These values do not establish calibration or dollar savings.", "",
               "## Correct decisions by primitive", "", "| Primitive | Local LLM | Jev |", "| --- | --- | --- |"]
     for kind in ("choice", "noul", "score"):
         cells = []
@@ -197,19 +283,23 @@ def markdown(report):
             cells.append(f"{subset['correct']} / {subset['attempts']}")
         lines.append(f"| {kind} | {cells[0]} | {cells[1]} |")
     lines += ["",
-              "## Paired decisions", "", "| Case / repetition | Expected | Local LLM | Jev |", "| --- | --- | --- | --- |"]
+              "## Paired decisions", "", "| Case / repetition | Expected | Local LLM strict | Local LLM lenient | Jev strict | Jev lenient |", "| --- | --- | --- | --- | --- | --- |"]
     for case in report["cases"]:
         for repetition in range(report["repeat"]):
             pair = {r["provider"]:r for r in report["rows"] if r["case_id"]==case["id"] and r["repetition"]==repetition}
             def cell(provider):
                 r=pair[provider]
                 return f"{r['value']} ({r['latency_ms']:.0f} ms, {'correct' if r['correct'] else 'incorrect'})" if r["status"]=="ok" else "ERROR"
-            lines.append(f"| {case['id']} / {repetition+1} | {case['expected']} | {cell('llm')} | {cell('jev')} |")
+            def lenient_cell(provider):
+                r = pair[provider]
+                return f"{r['lenient_value']} ({'correct' if r['lenient_correct'] else 'incorrect'}; {r['normalization']})" if r['lenient_status'] == 'ok' else 'ERROR'
+            lines.append(f"| {case['id']} / {repetition+1} | {case['expected']} | {cell('llm')} | {lenient_cell('llm')} | {cell('jev')} | {lenient_cell('jev')} |")
     return "\n".join(lines)+"\n"
 
 
 def html_report(report):
     """Portable report with rendered tables and expandable, escaped evidence."""
+    report = scored_report(report)
     parts = []
     in_table = False
     for line in markdown(report).splitlines():

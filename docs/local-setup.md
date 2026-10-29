@@ -89,6 +89,14 @@ The runner currently uses macOS/Linux file locking. Runtime traces include the c
 
 ## Troubleshooting
 
+Set `JEV_RISK_THRESHOLD` in `.env` to a finite number from 0 to 2 (default `1.0`). A refund risk score at or above that value requires review. The threshold is part of the saved execution identity; changing it prevents resuming a pending comparison under different rules.
+
+The integration is pinned to the tested `langchain-typesafe==0.0.1a3`, also captured in `uv.lock`. It remains a prerelease dependency, not a stable API guarantee; upgrades require explicit validation. See its [release history](https://pypi.org/project/langchain-typesafe/#history).
+
+SQLite stores comparison metadata, individual run fields, and append-only event rows separately. Each event persists only changed fields and newly appended events. Existing JSON-based databases are migrated transactionally on startup, with a `comparisons.pre-fields.db` backup retained in the data directory. Historical naming is normalized to `playbook_hint`; exported documentation recordings remain unchanged.
+
+The API accepts only localhost/loopback Host headers. Browser requests must come from the same origin or the explicit local Vite origins (`http://localhost:5173` and `http://127.0.0.1:5173`). Other origins, including `null`, are rejected before any action. Native CLI requests may omit Origin. These checks support a local demo; they are not authentication for a deployed service.
+
 | Symptom | Check |
 | --- | --- |
 | Connection refused | Server is running, port is correct, and the configured host is reachable from the Python process |

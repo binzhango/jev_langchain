@@ -17,7 +17,7 @@ from langchain_core.messages import AIMessage, SystemMessage, ToolMessage
 from langgraph.types import interrupt
 
 from .config import Settings
-from .decisions import JevDecisions, PLAYBOOKS, workflow
+from .decisions import JevDecisions, PLAYBOOKS, playbook_hint
 from .domain import POLICY_TEXT, SupportWorld
 from .models import ScriptedWorker, local_model
 
@@ -106,10 +106,10 @@ class HarnessMiddleware(AgentMiddleware):
         if cached.get("error"):
             selected, reason = "clarify", "Jev unavailable; avoid assuming a semantic assessment succeeded."
         else:
-            selected, reason = workflow(cached)
-        self.s.run["workflow"] = selected
-        self.s.emit("workflow", f"Prompt guidance: {selected}", {"workflow": selected, "rule": reason,
-                    "confidence_threshold": 0.6, "playbook": PLAYBOOKS[selected]}, once="workflow")
+            selected, reason = playbook_hint(cached)
+        self.s.run["playbook_hint"] = selected
+        self.s.emit("playbook_hint", f"Prompt guidance: {selected}", {"playbook_hint": selected, "rule": reason,
+                    "confidence_threshold": 0.6, "playbook": PLAYBOOKS[selected]}, once="playbook_hint")
         return {"jev_triage": cached}
 
     def wrap_model_call(self, request, handler):
@@ -117,9 +117,9 @@ class HarnessMiddleware(AgentMiddleware):
         if self.s.run["model_steps"] > 8:
             raise RuntimeError("Stopped after 8 agent model steps; inspect the trace for a loop.")
         if self.s.run["path"] == "jev":
-            selected = self.s.run.get("workflow", "clarify")
+            selected = self.s.run.get("playbook_hint", "clarify")
             content = str(request.system_message.content if request.system_message else "")
-            request = request.override(system_message=SystemMessage(content=content + "\nSelected workflow: " + PLAYBOOKS[selected]))
+            request = request.override(system_message=SystemMessage(content=content + "\nSelected playbook hint: " + PLAYBOOKS[selected]))
         request = request.override(model_settings={**(request.model_settings or {}), "parallel_tool_calls": False})
         started = perf_counter()
         if not self.s.fixture:
@@ -143,7 +143,6 @@ class HarnessMiddleware(AgentMiddleware):
         if previous is not None:
             return ToolMessage(content=json.dumps(previous), tool_call_id=call_id, name=name)
         self.s.emit("tool_proposed", f"Proposed {name}", {"tool": name, "args": args}, once=f"proposal:{call_id}")
-        approved = False
         if name == "issue_refund":
             policy = self.s.world.evaluate_refund(args)
             self.s.emit("policy", "Initial hard-policy check", {**policy, "args": args, "stage": "before_review"}, once=f"policy:{call_id}")
@@ -186,7 +185,6 @@ class HarnessMiddleware(AgentMiddleware):
                     return self.finish(call_id, name, args, {"status": "rejected", "reason": "A human reviewer rejected this action. Do not retry it."})
                 if decision["decision"] == "edit":
                     args = dict(decision["args"])
-                approved = True
                 # Revalidate the actual arguments after editing; review never overrides a limit.
                 policy = self.s.world.evaluate_refund(args)
                 self.s.emit("policy", "Final policy checks the reviewed arguments", {**policy, "args": args, "stage": "after_review"}, once=f"final:{call_id}")

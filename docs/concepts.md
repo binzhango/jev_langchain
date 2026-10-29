@@ -44,7 +44,7 @@ Read [decisions.py](../src/jev_harness/decisions.py) for the question definition
 
 ## What the two paths share
 
-Both paths already receive every playbook and the same three tools. The selected category adds one prompt line on the Jev path; the LLM can still propose any tool. Urgency, frustration, and triage `needs_review` are displayed but do not trigger control rules. Only the separate proposed-refund risk score adds an enforced review condition. Existing amount limits and agent-requested review apply on both paths, so a review is not necessarily caused by Jev.
+Both paths already receive every playbook and the same three tools. The selected category adds one prompt line on the Jev path; the LLM can still propose any tool. Urgency and frustration are displayed but do not trigger control rules. The unused triage `needs_review` question has been removed; old recordings may still contain it. Only the separate proposed-refund risk score adds an enforced review condition. Existing amount limits and agent-requested review apply on both paths, so a review is not necessarily caused by Jev.
 
 | Normal agent | Jev-assisted agent |
 | --- | --- |
@@ -61,7 +61,7 @@ The dashboard starts both paths from the same task snapshot with independent mut
 
 Enter a task once and select **Run both**. Read the shared starting context first, then compare the action timelines. Open a Jev event to inspect its exact state, question, answer, and duration. Read the prompt-guidance event as advisory; follow the risk and policy events to see the enforced review rule, then the tool result to see what actually happened.
 
-The normal path shows observable actions, not invented probabilities or private reasoning. A stored `workflow` event records prompt selection, not enforced routing or Jev's chain of thought. The first divergence helps locate where behavior began to differ; it does not establish which path was correct.
+The normal path shows observable actions, not invented probabilities or private reasoning. A stored `playbook_hint` event records prompt selection, not enforced routing or Jev's chain of thought. The first divergence helps locate where behavior began to differ; it does not establish which path was correct.
 
 Changing a threshold in the explorer recomputes a hypothetical branch from a saved score. It does not execute an action or show what the LLM would have said afterward. Export the comparison JSON to retain the actual histories and metadata; see the [API contract](api-contract.md).
 

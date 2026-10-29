@@ -6,7 +6,7 @@ import json
 from langchain.agents import create_agent
 from langchain.tools import tool
 from jev_harness.config import Settings
-from jev_harness.decisions import JevDecisions, workflow, PLAYBOOKS
+from jev_harness.decisions import JevDecisions, playbook_hint, PLAYBOOKS
 from jev_harness.domain import SupportWorld, get_scenario
 from jev_harness.models import local_model
 
@@ -14,8 +14,8 @@ settings = Settings.from_env()
 scenario = get_scenario("status")
 world = SupportWorld(scenario["fixture"])
 decision = JevDecisions(settings).classify({"task": scenario["task"], "fixture": world.data})
-selected, rule = workflow(decision)
-print(json.dumps({"prediction": decision["answers"]["category"], "workflow": selected, "rule": rule}, indent=2))
+selected, rule = playbook_hint(decision)
+print(json.dumps({"prediction": decision["answers"]["category"], "playbook_hint": selected, "rule": rule}, indent=2))
 
 @tool
 def lookup_order(order_id: str) -> dict:
