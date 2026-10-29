@@ -1,15 +1,15 @@
 # Jev Decision Lab
 
-**One task. Two LangChain agents. Inspect what changes when Jev makes orchestration decisions.**
+**Jev as a risk gate on proposed refunds: compare two LangChain agents on the same task.**
 
 Enter a support task once and run it through two paths:
 
 | Normal agent | Jev-assisted agent |
 | --- | --- |
-| Your local LLM chooses its next action using the task, tools, and policy instructions. | Hosted Jev classifies the task and assesses proposed refunds. Python turns those predictions into workflow and review decisions. |
+| Your local LLM chooses its next action using the task, tools, and policy instructions. | Hosted Jev scores proposed refunds. Python can require human review before execution. Triage also adds a prompt hint. |
 | The local LLM generates tool calls and responses. | The **same local LLM** generates tool calls and responses. |
 
-Both get the same task, fixture facts, tools, policy knowledge, model, and generation settings. Each has independent order data and checkpoints. There is no separate local decision model.
+Both get the same task, fixture facts, tools, policy knowledge, model, and generation settings. Each has independent order data and checkpoints. There is no separate local decision model. Both agents already receive all playbooks and the same tools. Triage only appends one selected-playbook line to the prompt; it does not filter tools or enforce a workflow. The concrete additional control is the refund risk gate.
 
 The dashboard puts the two traces next to one another: proposed actions, arguments, policy verdicts, tool results, approvals, and final responses. The Jev column adds the exact state, questions, typed answers, probability distributions, and rules that consumed them.
 
@@ -40,18 +40,19 @@ Fixture mode uses synthetic Jev values and scripted agent responses through the 
 The important boundary is:
 
 ```text
-Shared task and facts
-  → Jev: state + questions → typed predictions
-  → Python: predictions + thresholds → workflow / review decision
-  → Local LLM: proposed tool calls and response
-  → Hard policy: validate the actual action → simulated tool effect
+Local LLM proposes a refund
+  → Shared hard policy: deny prohibited actions
+  → Jev: proposed refund + evidence → risk score
+  → Python: risk threshold or missing score → require human review
+  → Shared hard policy: validate approved/edited arguments
+  → Simulated refund tool
 ```
 
-- **Choice** selects a support workflow and returns probabilities and confidence.
+- **Choice** selects a playbook to emphasize in one extra prompt line. It returns probabilities and confidence; it does not enforce routing or restrict tools.
 - **Noul** gives the probability that a statement is true. Urgency is demonstrated this way.
 - **Score** locates a case on an ordered rubric. Proposed-action risk is compared with an explicit review threshold.
 
-Jev does not write the final answer or authorize a refund itself. Python enforces ownership, finite whole-cent amounts, a $200 ceiling, the remaining order value, and duplicate protection in both paths. Refunds over $25 require review. Reviewed edits are checked again before execution. Frustration and urgency are visible teaching signals; they do not silently change monetary entitlement. [Decision anatomy](docs/concepts.md)
+Jev does not write the final answer or authorize a refund itself. Python enforces ownership, finite whole-cent amounts, a $200 ceiling, the remaining order value, and duplicate protection in both paths. Refunds over $25 require review. Reviewed edits are checked again before execution. Urgency, frustration, and the triage `needs_review` answer are visible teaching signals; they do not silently change monetary entitlement. [Decision anatomy](docs/concepts.md)
 
 ## Learn in small steps
 
@@ -73,7 +74,9 @@ For a **decision-only benchmark**, give Jev and the existing local LLM the exact
 uv run jev-lab benchmark --repeat 3 --output artifacts/benchmark
 ```
 
-This writes JSON evidence, a Markdown comparison, and a standalone HTML report. It uses the existing local chat model to answer decision questions; no local decision model is required. See [benchmark methodology](docs/decision-benchmark.md).
+This is an exploratory deployment comparison on 18 authored cases, not proof of model superiority. The first run produced **18/18 usable correct answers for Jev versus 17/18 for the local LLM**; the single difference was a JSON field-name error, not an observed wrong judgment. Both were correct on every valid response. Median valid-response times of **151 ms versus 11.16 s** compare hosted Jev with a local 27B model, including different hardware, serving stacks, and reasoning overhead. They do not establish intrinsic model speed or faster end-to-end agents. Scripted fixtures demonstrate machinery only.
+
+The command writes JSON evidence, a Markdown comparison, and a standalone HTML report. It uses the existing local chat model to answer decision questions; no local decision model is required. See [benchmark methodology](docs/decision-benchmark.md).
 
 Six seeded cases cover a status inquiry, a justified small refund, a larger refund requiring review, an unsupported small refund, an ambiguous request, and a prohibited payout. Custom tasks reuse a selected fixture and remain ungraded unless you supply your own assessment.
 
@@ -89,7 +92,7 @@ The reports retain completed, incomplete, and failed runs; actual side effects; 
 
 One process owns a data directory at a time. Use the dashboard while its server is running; for a separate CLI experiment, stop the server or set `JEV_LAB_DATA_DIR=artifacts/cli`. This prevents two processes from resuming the same approval.
 
-This compares **adding the Jev-assisted harness as a whole**. Workflow context and review rules change along with the decision source. A normal LLM often decides within a generation it already needs, so Jev can add latency. This repo measures the effect rather than assuming faster or better results. [Evaluation method and limits](docs/evaluation.md)
+This compares **adding the Jev-assisted harness as a whole**. An extra playbook prompt hint and the refund risk gate are added together. Neither the current triage hint nor these measurements demonstrate enforced workflow orchestration. A normal LLM often decides within a generation it already needs, so Jev can add latency. This repo measures the effect rather than assuming faster or better results. [Evaluation method and limits](docs/evaluation.md)
 
 Two live integration examples and their complete traces are available in [observed results](docs/observed-results.md). Both paths executed the correct simulated refunds; timings varied, and one response incorrectly described the approval state. The recordings illustrate why action checks and response quality must be assessed separately.
 
@@ -97,7 +100,7 @@ Two live integration examples and their complete traces are available in [observ
 
 ```text
 src/jev_harness/
-  decisions.py   Jev questions, full responses, explicit workflow rules
+  decisions.py   Jev questions, full responses, prompt-guidance selection and risk questions
   agent.py       two LangChain paths, tracing, policy and review middleware
   domain.py      fixtures, simulated tools, shared deterministic rules
   runner.py      identical inputs, independent state, checkpoints, comparisons

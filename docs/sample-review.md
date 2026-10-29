@@ -96,11 +96,11 @@ Use the sample as an architectural reference. Build a smaller support workflow w
 The MVP compares exactly two paths:
 
 1. **Ordinary LangChain agent:** the existing local generative LLM chooses its actions and workflow.
-2. **Jev-assisted LangChain agent:** the same local worker LLM generates responses and proposed tool calls, while hosted Jev supplies selected orchestration predictions that explicit Python rules consume.
+2. **Jev-assisted LangChain agent:** the same local worker LLM generates responses and proposed tool calls, while hosted Jev scores proposed refunds for an explicit Python review gate and supplies advisory triage guidance.
 
 Both paths use the same tools, task information, hard policy, worker model and generation settings. Run each scenario with fresh business data and checkpoints and a fixed fixture time. Show the decisions and tool sequences alongside task outcomes, call counts, decision latency, and end-to-end latency; report model-loading overhead and human waiting separately.
 
-This comparison measures the overall effect of adding the Jev-assisted harness. It does not perfectly isolate the decision model's contribution, because orchestration, prompt selection, and review behavior can also change. Record those differences and report both improvements and regressions without attributing every change solely to Jev. A separate local decision model or structured-decision classifier baseline is outside the agreed MVP.
+This comparison measures the overall effect of adding the Jev-assisted harness. It does not perfectly isolate the decision model's contribution, because the playbook prompt hint and refund-review condition change together. In the implemented demo, triage does not filter tools or enforce routing. Record those differences and report both improvements and regressions without attributing every change solely to Jev. A separate local decision model or structured-decision classifier baseline is outside the agreed MVP.
 
 The sample is Apache-2.0 licensed; the destination currently has MIT. Preserve applicable source notices for adapted material and establish upstream provenance before public release. The downloaded archive has no Git history, so implementation evolution has not been independently verified.
 

@@ -30,11 +30,12 @@ function EventRow({ event, source }: { event: TraceEvent; source: Execution }) {
     <span className="event-node"><Icon size={14} /></span>
     <details className="event-disclosure">
       <summary>
-        <span className="event-summary"><span className="event-kind">{event.type.replaceAll('_', ' ')}{decision && <span className="jev-mark">Jev</span>}</span><span className="event-title">{event.title}</span></span>
+        <span className="event-summary"><span className="event-kind">{event.type === 'workflow' ? 'prompt guidance' : event.type.replaceAll('_', ' ')}{decision && <span className="jev-mark">Jev</span>}</span><span className="event-title">{event.type === 'workflow' ? 'Selected playbook hint (advisory)' : event.title}</span></span>
         {source === 'live' && typeof event.elapsed_ms === 'number' && <span className="event-time">{duration(event.elapsed_ms)}</span>}
         <ChevronDown size={14} className="event-chevron" />
       </summary>
       <div className="event-body">
+        {event.type === 'workflow' && <p>Advisory prompt selection only. Both agents retain all playbooks and tools; no workflow-specific execution restriction is applied.</p>}
         {decision && <DecisionDetail event={event} />}
         <details className="raw-details" open={!decision}>
           <summary><Code2 size={13} />{decision ? 'Raw state, questions & response' : 'Event details'}</summary>
@@ -97,7 +98,7 @@ export default function RunPanel({ path, run, source, model, onReview }: { path:
       {run ? <StatusBadge status={run.status} /> : <span className="ready-label">Ready</span>}
     </header>
     <div className="run-description">
-      <p>{isJev ? 'Jev predicts. Explicit rules guide the agent.' : 'The local LLM chooses its next action.'}</p>
+      <p>{isJev ? 'Jev scores refunds. Python can require human review.' : 'The local LLM chooses its next action.'}</p>
       <div className="model-label" title={model}><Bot size={12} /><span>{model || 'Your local LLM'}</span>{isJev && <><span className="model-plus">+</span><span className="model-jev">Jev</span></>}</div>
     </div>
     <div className="metrics-grid">

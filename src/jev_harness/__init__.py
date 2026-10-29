@@ -1,1 +1,1 @@
-"""A small, inspectable experiment in Jev-assisted agent orchestration."""
+"""An inspectable LangChain experiment with a Jev refund risk gate."""

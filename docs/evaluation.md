@@ -1,8 +1,8 @@
 # Comparing the normal and Jev-assisted agents
 
-The experiment asks: **what changes when this LangChain support agent delegates selected orchestration predictions to hosted Jev?** Both paths use the same local generative LLM. There is no extra local classifier in the baseline.
+The experiment asks: **what changes when a Jev refund risk gate and an advisory triage prompt are added to this LangChain support agent?** Both paths use the same local generative LLM. There is no extra local classifier in the baseline.
 
-This measures the effect of the Jev-assisted harness as a whole. It does not isolate model-only quality: the assisted path also changes workflow context and control flow. Report those changes together with their outcomes.
+This measures the effect of the Jev-assisted harness as a whole. It does not isolate model-only quality: the assisted path adds a playbook prompt hint and an additional condition for pausing refunds for review. Both agents retain all playbooks and the same tools; no workflow-specific tool restrictions are implemented. Report those changes together with their outcomes.
 
 ## Run a paired case
 
@@ -33,7 +33,7 @@ Three repetitions can expose obvious variation; they are not enough to establish
 - Worker model, server configuration, generation settings, and available task/policy knowledge.
 - Scenario reset procedure and, for reviewed actions, the declared reviewer policy.
 
-The normal agent receives a competent support prompt and chooses its own next step. Jev supplies additional predictions only in the assisted path. Document the questions, selected workflow instructions, thresholds, and failure handling that constitute that intervention.
+The normal agent receives a competent support prompt and chooses its own next step. Jev supplies additional predictions only in the assisted path. Document the questions, selected playbook prompt hint, thresholds, and failure handling that constitute that intervention.
 
 Evaluation IDs and expected labels are kept out of live inference inputs. Jev triage sees the same task and fixture facts supplied to the local worker; risk assessment also sees the proposed action and verified tool evidence. If Jev is unavailable, the run displays a degraded warning and is excluded from automatic decision-quality scoring, even if the fallback completes a task. Its observed action checks remain inspectable.
 
@@ -57,7 +57,7 @@ The current runner accepts one submitted task per comparison, followed by its to
 
 Read per-event durations alongside aggregate time. The CLI summary reports the median active `duration_ms` for completed live runs; it does not report a full user wall-time median. Failed runs remain in the detailed comparison records. Token totals combine available model usage; use the Jev and model-result events to inspect provider-specific contributions. If provider usage is missing, retain the missing value rather than interpreting it as zero.
 
-The normal agent's orchestration happens within its generation calls. It has no separately measured classifier latency. Jev adds requests; a simple task may finish faster without them. Potential gains include fewer unnecessary iterations, more appropriate workflow selection, or better review decisions, but all require observed evidence.
+The normal agent's orchestration happens within its generation calls. It has no separately measured classifier latency. Jev adds requests; a simple task may finish faster without them. Better review decisions are a hypothesis to test, not an established benefit of this demo. Decision-only hosted-versus-local latency is not a measurement of end-to-end agent speed.
 
 Custom tasks usually have no expected labels. Show their differences without declaring a winner. For labeled tasks, inspect whether the checks capture the intended outcome: a model saying “refunded” is not equivalent to a successful refund tool result. Review false allows, false denials, unnecessary reviews, and unresolved cases separately rather than compressing everything into one success number.
 

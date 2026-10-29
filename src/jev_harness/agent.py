@@ -1,4 +1,4 @@
-"""The two real LangChain agents differ only by selected Jev orchestration hooks.
+"""The Jev path adds advisory prompt guidance and an enforced refund review gate.
 
 Read this after decisions.py. A normal agent has the same tools, policy knowledge,
 worker, and review mechanism; it has no hidden classification call.
@@ -108,7 +108,7 @@ class HarnessMiddleware(AgentMiddleware):
         else:
             selected, reason = workflow(cached)
         self.s.run["workflow"] = selected
-        self.s.emit("workflow", f"Workflow: {selected}", {"workflow": selected, "rule": reason,
+        self.s.emit("workflow", f"Prompt guidance: {selected}", {"workflow": selected, "rule": reason,
                     "confidence_threshold": 0.6, "playbook": PLAYBOOKS[selected]}, once="workflow")
         return {"jev_triage": cached}
 

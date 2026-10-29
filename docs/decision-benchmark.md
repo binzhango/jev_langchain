@@ -1,5 +1,7 @@
 # Jev vs the local LLM: decision benchmark
 
+**Exploratory deployment measurements, not proof of a better model.** The first run's 18/18 versus 17/18 usable correct answers differ by one JSON field-name error; both models were correct on all valid responses. The 151 ms versus 11.16 s medians compare hosted Jev with a local 27B generative model on different serving infrastructure, including local reasoning overhead. This is not an equivalent-hardware speed comparison or an end-to-end agent benchmark. Scripted fixtures show mechanics, not model behavior. Keep these qualifications next to any numbers copied into a slide or summary.
+
 There are now two complementary experiments:
 
 - `compare` / `evaluate`: normal LangChain agent versus Jev-assisted agent on the same support task, including tool loops and final responses.

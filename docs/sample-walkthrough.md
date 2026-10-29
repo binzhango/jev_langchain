@@ -34,7 +34,7 @@ The prompt combines base instructions, voice, triage, a selected skill, and esca
 
 Model routing is Python logic. The sample prioritizes escalation, certain policy-sensitive categories, reasoning probability at least 0.5, frustration at least 1.5, and category confidence below 0.6. Otherwise it uses the fast model. Those thresholds are design choices, not properties of Jev.
 
-The new repo keeps one worker model shared between the two paths. It demonstrates workflow selection without claiming savings from switching between different chat models.
+The new repo keeps one worker model shared between the two paths. It demonstrates advisory playbook selection and a refund risk gate. Playbook selection adds a prompt line; it does not restrict tools or enforce routing.
 
 ## 4. Separate semantic review from hard policy
 
@@ -70,7 +70,7 @@ The source also has documentation drift: actual model IDs differ from README nam
 
 ## What the smaller implementation preserves
 
-The new implementation is authored for this teaching repo, using the sample as an architectural reference. It retains explicit questions, prediction-driven workflows, hard policy, review, and event inspection. It simplifies the support data and omits the voucher/cancellation ladder, generated titles, and summarization so the first comparison has fewer moving parts.
+The new implementation is authored for this teaching repo, using the sample as an architectural reference. It retains explicit questions, advisory playbook selection and a refund risk gate, hard policy, review, and event inspection. It simplifies the support data and omits the voucher/cancellation ladder, generated titles, and summarization so the first comparison has fewer moving parts.
 
 The primary experience is one task, two independent runs, and side-by-side evidence. The [concept guide](concepts.md) explains those responsibilities; the [evaluation guide](evaluation.md) explains how to interpret differences.
 

@@ -1,4 +1,7 @@
-"""Make the causal link visible: a Jev Choice selects ordinary Python guidance."""
+"""Jev Choice selects a prompt hint; it does not enforce routing or filter tools.
+
+This example always exposes lookup_order, regardless of the selected category.
+"""
 import json
 from langchain.agents import create_agent
 from langchain.tools import tool

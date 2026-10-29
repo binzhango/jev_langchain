@@ -160,11 +160,30 @@ def summarize(rows):
     return result
 
 
+BENCHMARK_CAVEAT = (
+    "Exploratory deployment comparison, not proof of model superiority. "
+    "Hosted Jev and the local generative LLM use different hardware, serving stacks, "
+    "and decoding behavior, including any local reasoning overhead. Request latency "
+    "does not establish intrinsic model speed or faster end-to-end agents. "
+    "A failed output may be a formatting or service error rather than a wrong judgment. "
+    "Scripted fixtures demonstrate machinery, not model behavior, and are not measured here."
+)
+
+
 def markdown(report):
-    lines = ["# Jev vs local LLM: decision benchmark", "", report["limitations"], "",
+    lines = ["# Jev vs local LLM: exploratory decision benchmark", "", BENCHMARK_CAVEAT, "", report["limitations"], "",
              f"Run: {report['created_at']}. Dataset: `{report['dataset_hash'][:12]}`. Repetitions: {report['repeat']}.", "",
-             f"Local model: {report['models']['llm']}. Jev requested: {report['models']['jev_requested']}. Resolved model IDs are recorded per response.", "",
-             "| Metric | Local LLM | Jev |", "| --- | --- | --- |"]
+             f"Authored cases: {len(report['cases'])}. Repetitions reuse these cases; they are not additional independent tasks.", "",
+             f"Local model: {report['models']['llm']}. Jev requested: {report['models']['jev_requested']}. Resolved model IDs are recorded per response.", ""]
+    for provider, label in (("llm", "Local LLM"), ("jev", "Jev")):
+        summary = report['summary'][provider]
+        correct = sum(r['correct'] for r in report['rows'] if r['provider'] == provider)
+        lines += [f"{label}: {correct}/{summary['attempts']} usable correct answers; "
+                  f"{correct}/{summary['valid']} correct among valid responses; {summary['failures']} failed outputs or requests.", ""]
+    failures = [r for r in report['rows'] if r['status'] != 'ok']
+    if failures:
+        lines += ["Failures remain in the accuracy denominator. Inspect their raw outputs before attributing the difference to decision quality.", ""]
+    lines += ["| Metric | Local LLM | Jev |", "| --- | --- | --- |"]
     for key in ("attempts", "valid", "failures", "decision_accuracy", "valid_decision_accuracy", "latency_p50_ms", "latency_p95_ms", "all_attempt_latency_p50_ms", "noul_brier", "risk_mae", "false_allows", "unnecessary_reviews", "input_tokens", "output_tokens"):
         def fmt(value):
             return "not available" if value is None else f"{value:.3f}" if isinstance(value,float) else str(value)

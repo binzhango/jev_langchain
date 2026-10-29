@@ -1,7 +1,7 @@
 [project]
 name = "jev-langchain-lab"
 version = "0.1.0"
-description = "Compare an ordinary LangChain agent with Jev-assisted orchestration on the same task."
+description = "Compare a normal LangChain agent with a Jev refund risk gate on the same task."
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [

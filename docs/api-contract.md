@@ -38,7 +38,7 @@ type Event = {
 };
 ```
 
-Common event types: `input`, `jev_triage`, `workflow`, `model`, `tool_proposed`, `jev_risk`, `policy`, `review_requested`, `review_resolved`, `tool_result`, `response`, `error`. Decision details contain `state`, `questions`, `answers` keyed by ID, `usage`, `model`, `request_id`, and `elapsed_ms` where available. `jev_risk` also carries `threshold` and `needs_review`. Answers follow TypeSafe primitives (`type`, `choice`, `probabilities`, `confidence`, `score`, `legend`, `noul` as applicable). A workflow event records the rule applied, not model chain-of-thought.
+Common event types: `input`, `jev_triage`, `workflow`, `model`, `tool_proposed`, `jev_risk`, `policy`, `review_requested`, `review_resolved`, `tool_result`, `response`, `error`. Decision details contain `state`, `questions`, `answers` keyed by ID, `usage`, `model`, `request_id`, and `elapsed_ms` where available. `jev_risk` also carries `threshold` and `needs_review`. Answers follow TypeSafe primitives (`type`, `choice`, `probabilities`, `confidence`, `score`, `legend`, `noul` as applicable). The legacy `workflow` event records selection of an advisory playbook prompt hint. It does not mean tools were filtered or routing was enforced, and is not model chain-of-thought.
 
 Fixture mode is for interactive walkthroughs without credentials and must remain visibly labeled on every result. It uses scripted agent responses and synthetic Jev answers. Never present fixture timings or scripted decisions as a live benchmark. Custom task text is supported in live mode; fixture mode requires the selected scenario's unchanged task.
 
